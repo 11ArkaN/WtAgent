@@ -46,9 +46,9 @@ internal sealed class CliApplication
         }
 
         var runArguments = parsed.RunArguments!;
-        var root = AgentPaths.ResolveRoot(runArguments.ArtifactsDirectory, runArguments.WorkingDirectory);
+        var root = AgentPaths.ResolveRoot(runArguments.ArtifactsDirectory, Environment.CurrentDirectory);
         var registry = new RegistryStore(root.StateDirectory, _serializerOptions);
-        var layout = AgentPaths.CreateRunLayout(runArguments.ArtifactsDirectory, runArguments.WorkingDirectory);
+        var layout = AgentPaths.CreateRunLayout(runArguments.ArtifactsDirectory, Environment.CurrentDirectory);
         var terminalSettings = new WindowsTerminalSettings();
         var profile = terminalSettings.ResolveProfile(runArguments.Profile);
         var title = $"WT_AGENT_{layout.RunId}";

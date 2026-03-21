@@ -38,16 +38,24 @@ flowchart LR
 
 ## Install
 
-Default install path is GitHub Releases:
+The primary end-user install path is the normal Windows setup wizard from GitHub Releases:
+
+1. Open [Releases](https://github.com/11ArkaN/WtAgent/releases/latest)
+2. Download `WtAgent-Setup.exe`
+3. Run the setup wizard
+
+The setup installer:
+
+- installs `WtAgent` as a normal per-user Windows app
+- creates an entry in `Installed apps`
+- can add `wt-agent` to the user `PATH`
+- can install the `wt-agent-terminal` skill for Codex, Claude Code, and Cursor during setup
+
+For developers who want a local unpublished install from the repo:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\install-wt-agent.ps1
-powershell -ExecutionPolicy Bypass -File .\scripts\install-wt-agent-skill.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\install-wt-agent.ps1 -InstallSkill
 ```
-
-That downloads the latest `wt-agent-win-x64.zip` release asset, installs it into `%LOCALAPPDATA%\wt-agent\current`, and exposes `wt-agent` through `%USERPROFILE%\.local\bin`.
-
-The second command installs the Codex skill from the same release into `%CODEX_HOME%\skills\wt-agent-terminal` or `%USERPROFILE%\.codex\skills\wt-agent-terminal`.
 
 ## Agent Skill
 
@@ -78,13 +86,6 @@ npx skills add . --skill wt-agent-terminal --agent cursor
 ```
 
 Use `scripts/install-wt-agent-skill.ps1` only as the convenience path for Codex-style local installs on Windows. For cross-agent installation, prefer `npx skills add ...`.
-
-For unpublished local changes:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\install-wt-agent.ps1 -Source local
-powershell -ExecutionPolicy Bypass -File .\scripts\install-wt-agent-skill.ps1 -Source local
-```
 
 ## Quick Start
 
@@ -126,12 +127,27 @@ Every command returns JSON. Important fields:
 - `live`: current state for interactive sessions
 - `shellKind` and `stateSource`: whether the active shell is PowerShell or nested WSL
 
+## Artifact Layout
+
+By default, `WtAgent` writes `.wt-agent` into the directory where the agent is currently working when it invokes the CLI.
+
+That keeps artifacts separate per project, for example:
+
+```text
+project-a/.wt-agent/...
+project-b/.wt-agent/...
+```
+
+If you want a custom location, pass `--artifacts-dir`.
+
 ## Releases
 
 - Repo: [11ArkaN/WtAgent](https://github.com/11ArkaN/WtAgent)
 - Latest release assets are published from GitHub Actions on tags `v*`
+- Primary installer asset: `WtAgent-Setup.exe`
 - Current installer target asset name: `wt-agent-win-x64.zip`
 - Current skill asset name: `wt-agent-terminal-skill.zip`
+- Developer helper scripts asset: `wt-agent-installer-scripts.zip`
 
 ## Development
 
@@ -145,4 +161,10 @@ Test:
 
 ```powershell
 dotnet test wt-agent.sln
+```
+
+Build a local setup exe:
+
+```powershell
+dotnet publish src/WtAgent/WtAgent.csproj -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:DebugType=None /p:DebugSymbols=false -o out/win-x64
 ```

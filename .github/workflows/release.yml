@@ -35,7 +35,29 @@ jobs:
           --self-contained true
           /p:PublishSingleFile=true
           /p:IncludeNativeLibrariesForSelfExtract=true
+          /p:DebugType=None
+          /p:DebugSymbols=false
           --output out/win-x64
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Build setup
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $iscc = @(
+            "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
+            "C:\Program Files\Inno Setup 6\ISCC.exe"
+          ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $iscc) {
+            throw "ISCC.exe was not found after installing Inno Setup."
+          }
+          & $iscc `
+            "/DMyAppVersion=$tag" `
+            "/DAppSourceDir=$PWD\out\win-x64" `
+            "/DSkillSourceDir=$PWD\skills\wt-agent-terminal" `
+            "$PWD\installer\WtAgent.iss"
 
       - name: Package artifact
         shell: pwsh
@@ -55,9 +77,20 @@ jobs:
           }
           Compress-Archive -Path "skills/wt-agent-terminal" -DestinationPath $artifactName
 
+      - name: Package developer installer scripts
+        shell: pwsh
+        run: |
+          $artifactName = "wt-agent-installer-scripts.zip"
+          if (Test-Path $artifactName) {
+            Remove-Item $artifactName -Force
+          }
+          Compress-Archive -Path "scripts/install-wt-agent.ps1", "scripts/install-wt-agent-skill.ps1" -DestinationPath $artifactName
+
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
           files: |
+            installer/output/WtAgent-Setup.exe
             wt-agent-win-x64.zip
             wt-agent-terminal-skill.zip
+            wt-agent-installer-scripts.zip

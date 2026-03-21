@@ -6,6 +6,8 @@ param(
     [string]$Version = "",
     [string]$AssetName = "wt-agent-terminal-skill.zip",
     [string]$SkillName = "wt-agent-terminal",
+    [ValidateSet("codex", "claude-code", "cursor", "gemini-cli", "opencode", "custom")]
+    [string]$Agent = "codex",
     [string]$InstallRoot = ""
 )
 
@@ -16,16 +18,37 @@ $repoRoot = Split-Path -Parent $scriptRoot
 $localSkillPath = Join-Path $repoRoot "skills\$SkillName"
 $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) "wt-agent-skill-install"
 
-if ([string]::IsNullOrWhiteSpace($InstallRoot)) {
-    $codexHome = if ([string]::IsNullOrWhiteSpace($env:CODEX_HOME)) {
-        Join-Path $HOME ".codex"
-    }
-    else {
-        $env:CODEX_HOME
+function Resolve-AgentSkillRoot {
+    param(
+        [string]$TargetAgent,
+        [string]$ExplicitInstallRoot
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($ExplicitInstallRoot)) {
+        return $ExplicitInstallRoot
     }
 
-    $InstallRoot = Join-Path $codexHome "skills"
+    switch ($TargetAgent) {
+        "codex" {
+            $codexHome = if ([string]::IsNullOrWhiteSpace($env:CODEX_HOME)) {
+                Join-Path $HOME ".codex"
+            }
+            else {
+                $env:CODEX_HOME
+            }
+
+            return (Join-Path $codexHome "skills")
+        }
+        "claude-code" { return (Join-Path $HOME ".claude\\skills") }
+        "cursor" { return (Join-Path $HOME ".cursor\\skills") }
+        "gemini-cli" { return (Join-Path $HOME ".gemini\\skills") }
+        "opencode" { return (Join-Path $HOME ".config\\opencode\\skills") }
+        "custom" { throw "When -Agent custom is used, -InstallRoot is required." }
+        default { throw "Unsupported agent '$TargetAgent'." }
+    }
 }
+
+$InstallRoot = Resolve-AgentSkillRoot -TargetAgent $Agent -ExplicitInstallRoot $InstallRoot
 
 $InstallRoot = [System.IO.Path]::GetFullPath($InstallRoot)
 $destinationPath = Join-Path $InstallRoot $SkillName
@@ -112,6 +135,7 @@ $result = [ordered]@{
     repo = $Repo
     version = if ([string]::IsNullOrWhiteSpace($Version)) { "latest" } else { $Version }
     assetName = $AssetName
+    agent = $Agent
     skillName = $SkillName
     installRoot = $InstallRoot
     destinationPath = $destinationPath

@@ -9,7 +9,7 @@ Use `wt-agent` as the primary interface for Windows Terminal work that must pres
 
 This skill is stored in a `skills.sh`-compatible `skills/<name>` layout, so it can be installed into multiple agent ecosystems such as Codex, Claude Code, Cursor, and other tools supported by `npx skills add`.
 
-If `wt-agent` is missing, install it first from the current repo with `scripts/install-wt-agent.ps1`.
+If `wt-agent` is missing, prefer the normal Windows installer from the latest GitHub Release: `WtAgent-Setup.exe`. Use the PowerShell scripts in `scripts/` only for local development or unpublished branches.
 
 ## Quick Start
 

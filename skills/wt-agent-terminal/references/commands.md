@@ -2,12 +2,19 @@
 
 ## Install From GitHub Release
 
+1. Open the latest release page.
+2. Download `WtAgent-Setup.exe`.
+3. Run the setup wizard and select the skill tasks you want.
+
+That is the primary end-user install path.
+
+## Install From Local Repo Scripts
+
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\install-wt-agent.ps1
-powershell -ExecutionPolicy Bypass -File .\scripts\install-wt-agent-skill.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\install-wt-agent.ps1 -InstallSkill
 ```
 
-Use this as the default install path. It downloads the latest release assets from `11ArkaN/WtAgent`, installs the CLI into `%LOCALAPPDATA%\wt-agent\current`, and installs the skill into `%CODEX_HOME%\skills\wt-agent-terminal` or `%USERPROFILE%\.codex\skills\wt-agent-terminal`.
+Use this only for local development or unpublished branches.
 
 ## Install Through skills.sh
 

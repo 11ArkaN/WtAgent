@@ -2,11 +2,11 @@ namespace WtAgent;
 
 internal static class AgentPaths
 {
-    public static (string RootDirectory, string StateDirectory, string RunsDirectory, string SessionsDirectory) ResolveRoot(string? artifactsDirectory, string workingDirectory)
+    public static (string RootDirectory, string StateDirectory, string RunsDirectory, string SessionsDirectory) ResolveRoot(string? artifactsDirectory, string workspaceDirectory)
     {
         var root = artifactsDirectory is { Length: > 0 }
             ? Path.GetFullPath(artifactsDirectory)
-            : Path.Combine(workingDirectory, ".wt-agent");
+            : Path.Combine(workspaceDirectory, ".wt-agent");
 
         var state = Path.Combine(root, "state");
         var runs = Path.Combine(root, "runs");
@@ -20,9 +20,9 @@ internal static class AgentPaths
         return (root, state, runs, sessions);
     }
 
-    public static RunLayout CreateRunLayout(string? artifactsDirectory, string workingDirectory)
+    public static RunLayout CreateRunLayout(string? artifactsDirectory, string workspaceDirectory)
     {
-        var root = ResolveRoot(artifactsDirectory, workingDirectory);
+        var root = ResolveRoot(artifactsDirectory, workspaceDirectory);
         var runId = DateTimeOffset.UtcNow.ToString("yyyyMMddHHmmssfff") + "_" + Guid.NewGuid().ToString("N")[..8];
         var runDirectory = Path.Combine(root.RunsDirectory, runId);
         Directory.CreateDirectory(runDirectory);
@@ -55,9 +55,9 @@ internal static class AgentPaths
         };
     }
 
-    public static SessionLayout CreateSessionLayout(string? artifactsDirectory, string workingDirectory)
+    public static SessionLayout CreateSessionLayout(string? artifactsDirectory, string workspaceDirectory)
     {
-        var root = ResolveRoot(artifactsDirectory, workingDirectory);
+        var root = ResolveRoot(artifactsDirectory, workspaceDirectory);
         var sessionId = DateTimeOffset.UtcNow.ToString("yyyyMMddHHmmssfff") + "_" + Guid.NewGuid().ToString("N")[..8];
         var sessionDirectory = Path.Combine(root.SessionsDirectory, sessionId);
         var capturesDirectory = Path.Combine(sessionDirectory, "captures");
@@ -85,9 +85,9 @@ internal static class AgentPaths
         };
     }
 
-    public static string ResolveSessionManifestPath(string? artifactsDirectory, string workingDirectory, string sessionId)
+    public static string ResolveSessionManifestPath(string? artifactsDirectory, string workspaceDirectory, string sessionId)
     {
-        var root = ResolveRoot(artifactsDirectory, workingDirectory);
+        var root = ResolveRoot(artifactsDirectory, workspaceDirectory);
         return Path.Combine(root.SessionsDirectory, sessionId, "session.json");
     }
 }

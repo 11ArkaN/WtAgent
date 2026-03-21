@@ -19,7 +19,7 @@ internal sealed class WindowsTerminalSessionManager
 
     public async Task<SessionResult> StartAsync(StartSessionArguments arguments)
     {
-        var layout = AgentPaths.CreateSessionLayout(arguments.ArtifactsDirectory, arguments.WorkingDirectory);
+        var layout = AgentPaths.CreateSessionLayout(arguments.ArtifactsDirectory, Environment.CurrentDirectory);
         var terminalSettings = new WindowsTerminalSettings();
         var profile = terminalSettings.ResolveProfile(arguments.Profile);
         var title = $"WT_AGENT_SESSION_{layout.SessionId}";
