@@ -61,7 +61,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\install-wt-agent.ps1 -Install
 
 This repo is laid out in a `skills.sh`-compatible structure:
 
-- [skills/wt-agent-terminal](/C:/Users/ArkaN/Downloads/sulima%20lab2/skills/wt-agent-terminal)
+- `skills/wt-agent-terminal`
 
 That means the skill can be installed to multiple agent ecosystems, not only Codex.
 
@@ -72,18 +72,24 @@ cd /path/to/WtAgent
 npx skills add . --skill wt-agent-terminal
 ```
 
-Or install by pointing directly at the repo URL:
+Or install by pointing directly at the public repo:
 
 ```bash
 npx skills add https://github.com/11ArkaN/WtAgent --skill wt-agent-terminal
 ```
 
+Short GitHub form:
+
+```bash
+npx skills add 11ArkaN/WtAgent --skill wt-agent-terminal
+```
+
 Target a specific agent explicitly:
 
 ```bash
-npx skills add . --skill wt-agent-terminal --agent codex
-npx skills add . --skill wt-agent-terminal --agent claude-code
-npx skills add . --skill wt-agent-terminal --agent cursor
+npx skills add 11ArkaN/WtAgent --skill wt-agent-terminal --agent codex
+npx skills add 11ArkaN/WtAgent --skill wt-agent-terminal --agent claude-code
+npx skills add 11ArkaN/WtAgent --skill wt-agent-terminal --agent cursor
 ```
 
 Use `scripts/install-wt-agent-skill.ps1` only as the convenience path for Codex-style local installs on Windows. For cross-agent installation, prefer `npx skills add ...`.
