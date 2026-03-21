@@ -164,6 +164,7 @@ public sealed record RunLayout
     public required string RunId { get; init; }
     public required string BootstrapScriptPath { get; init; }
     public required string CommandFilePath { get; init; }
+    public required string ReadyFilePath { get; init; }
     public required string DoneFilePath { get; init; }
     public required string ResultFilePath { get; init; }
     public required string MetadataFilePath { get; init; }

@@ -6,16 +6,23 @@ namespace WtAgent.Tests;
 public sealed class ScrollCaptureStitcherTests
 {
     [Fact]
-    public void Stitch_RemovesOverlappingRows()
+    public void FindVerticalOverlap_DetectsSharedRows()
     {
         using var first = CreateFrame(startValue: 0, totalRows: 6);
         using var second = CreateFrame(startValue: 4, totalRows: 6);
 
         var overlap = ScrollCaptureStitcher.FindVerticalOverlap(first, second);
         Assert.Equal(2, overlap);
+    }
+
+    [Fact]
+    public void Stitch_StacksFramesWithoutDroppingRows()
+    {
+        using var first = CreateFrame(startValue: 0, totalRows: 6);
+        using var second = CreateFrame(startValue: 4, totalRows: 6);
 
         using var stitched = ScrollCaptureStitcher.Stitch([first, second]);
-        Assert.Equal(10, stitched.Height);
+        Assert.Equal(12, stitched.Height);
         Assert.Equal(first.Width, stitched.Width);
     }
 

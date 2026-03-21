@@ -53,6 +53,8 @@ internal sealed class WindowsTerminalRunner
             registryRun.Status = "running";
             await _registry.UpsertAsync(registryRun);
 
+            await BootstrapWatcher.WaitForReadyAsync(layout.ReadyFilePath, TimeSpan.FromSeconds(15));
+            NativeMethods.PasteCommandAndSubmit(window.Hwnd, arguments.Command);
             bootstrap = await BootstrapWatcher.WaitForCompletionAsync(layout.DoneFilePath, TimeSpan.FromSeconds(arguments.TimeoutSeconds));
             await Task.Delay(500);
 

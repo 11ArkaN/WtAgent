@@ -5,6 +5,22 @@ namespace WtAgent;
 
 internal static class BootstrapWatcher
 {
+    public static async Task WaitForReadyAsync(string readyFilePath, TimeSpan timeout)
+    {
+        var started = DateTimeOffset.UtcNow;
+        while (DateTimeOffset.UtcNow - started < timeout)
+        {
+            if (File.Exists(readyFilePath))
+            {
+                return;
+            }
+
+            await Task.Delay(100);
+        }
+
+        throw new TimeoutException($"Timed out waiting for '{readyFilePath}'.");
+    }
+
     public static async Task<BootstrapResult> WaitForCompletionAsync(string doneFilePath, TimeSpan timeout)
     {
         var started = DateTimeOffset.UtcNow;

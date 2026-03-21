@@ -16,7 +16,7 @@ internal sealed class WindowCaptureService
         var framesToDispose = new List<CapturedFrame>();
         try
         {
-            using var initial = CaptureFrame(hwnd);
+            using var initial = CaptureSettledFrame(hwnd);
             if (initial is null)
             {
                 return new CaptureResult("none", false);
@@ -41,15 +41,14 @@ internal sealed class WindowCaptureService
             var detachedTop = topFrame.Detach();
             frames.Add(detachedTop);
             framesToDispose.Add(detachedTop);
-            var bottomFingerprint = ScrollCaptureStitcher.ComputeFingerprint(initial.ClientBitmap);
             var repeatedFrames = 0;
 
             for (var i = 0; i < 256; i++)
             {
                 NativeMethods.ScrollWindowPage(hwnd, up: false);
-                Thread.Sleep(140);
+                Thread.Sleep(260);
 
-                using var nextFrame = CaptureFrame(hwnd, initial.ModeUsed);
+                using var nextFrame = CaptureSettledFrame(hwnd, initial.ModeUsed);
                 if (nextFrame is null || nextFrame.ClientBitmap is null)
                 {
                     break;
@@ -77,11 +76,6 @@ internal sealed class WindowCaptureService
                 var detached = nextFrame.Detach();
                 frames.Add(detached);
                 framesToDispose.Add(detached);
-
-                if (nextFingerprint == bottomFingerprint)
-                {
-                    break;
-                }
             }
 
             if (frames.Count == 1)
@@ -90,7 +84,11 @@ internal sealed class WindowCaptureService
                 return new CaptureResult(initial.ModeUsed, anyBlank);
             }
 
-            using var stitched = ScrollCaptureStitcher.Stitch(frames.Select(frame => frame.ClientBitmap!).ToList());
+            SaveDebugFrames(outputPath, frames);
+            using var preparedFrames = PrepareFramesForStitch(frames);
+            SavePreparedFrames(outputPath, preparedFrames);
+            SaveOverlapMetrics(outputPath, preparedFrames);
+            using var stitched = ScrollCaptureStitcher.Stitch(preparedFrames);
             stitched.Save(outputPath, ImageFormat.Png);
             return new CaptureResult($"scroll-stitch+{initial.ModeUsed}", anyBlank);
         }
@@ -108,43 +106,128 @@ internal sealed class WindowCaptureService
         }
     }
 
-    private static CapturedFrame? MoveToTop(IntPtr hwnd, string preferredMode)
+    private static PreparedFrameSet PrepareFramesForStitch(IReadOnlyList<CapturedFrame> frames)
     {
-        CapturedFrame? current = CaptureFrame(hwnd, preferredMode);
-        if (current is null)
+        var prepared = new List<Bitmap>(frames.Count)
         {
-            return null;
-        }
+            (Bitmap)frames[0].ClientBitmap!.Clone()
+        };
 
-        var stagnant = 0;
-        for (var i = 0; i < 256; i++)
+        var maxSharedTopRows = Math.Min(160, frames[0].ClientBitmap!.Height / 4);
+        var sharedTopRows = frames.Count > 1
+            ? ScrollCaptureStitcher.CountSharedTopRows(frames[0].ClientBitmap!, frames[1].ClientBitmap!, maxSharedTopRows)
+            : 0;
+
+        for (var index = 1; index < frames.Count; index++)
         {
-            var previousFingerprint = current.ClientBitmap is null
-                ? string.Empty
-                : ScrollCaptureStitcher.ComputeFingerprint(current.ClientBitmap);
-
-            NativeMethods.ScrollWindowPage(hwnd, up: true);
-            Thread.Sleep(140);
-
-            using var next = CaptureFrame(hwnd, preferredMode);
-            if (next is null || next.ClientBitmap is null)
+            var source = frames[index].ClientBitmap!;
+            if (sharedTopRows > 0 && sharedTopRows < source.Height)
             {
-                break;
-            }
-
-            var nextFingerprint = ScrollCaptureStitcher.ComputeFingerprint(next.ClientBitmap);
-            if (nextFingerprint == previousFingerprint)
-            {
-                stagnant++;
-                if (stagnant >= 2)
-                {
-                    break;
-                }
-
+                prepared.Add(source.Clone(
+                    new Rectangle(0, sharedTopRows, source.Width, source.Height - sharedTopRows),
+                    PixelFormat.Format32bppArgb));
                 continue;
             }
 
-            stagnant = 0;
+            prepared.Add((Bitmap)source.Clone());
+        }
+
+        return new PreparedFrameSet(prepared);
+    }
+
+    private static void SaveDebugFrames(string outputPath, IReadOnlyList<CapturedFrame> frames)
+    {
+        var outputDirectory = Path.GetDirectoryName(outputPath);
+        if (string.IsNullOrWhiteSpace(outputDirectory))
+        {
+            return;
+        }
+
+        var debugDirectory = Path.Combine(outputDirectory, "debug-frames");
+        Directory.CreateDirectory(debugDirectory);
+
+        for (var index = 0; index < frames.Count; index++)
+        {
+            var client = frames[index].ClientBitmap;
+            if (client is null)
+            {
+                continue;
+            }
+
+            var framePath = Path.Combine(debugDirectory, $"frame-{index:D3}.png");
+            client.Save(framePath, ImageFormat.Png);
+        }
+    }
+
+    private static void SavePreparedFrames(string outputPath, IReadOnlyList<Bitmap> frames)
+    {
+        var outputDirectory = Path.GetDirectoryName(outputPath);
+        if (string.IsNullOrWhiteSpace(outputDirectory))
+        {
+            return;
+        }
+
+        var debugDirectory = Path.Combine(outputDirectory, "debug-prepared");
+        Directory.CreateDirectory(debugDirectory);
+
+        for (var index = 0; index < frames.Count; index++)
+        {
+            var framePath = Path.Combine(debugDirectory, $"prepared-{index:D3}.png");
+            frames[index].Save(framePath, ImageFormat.Png);
+        }
+    }
+
+    private static void SaveOverlapMetrics(string outputPath, IReadOnlyList<Bitmap> frames)
+    {
+        var outputDirectory = Path.GetDirectoryName(outputPath);
+        if (string.IsNullOrWhiteSpace(outputDirectory))
+        {
+            return;
+        }
+
+        var overlaps = ScrollCaptureStitcher.ComputeOverlaps(frames);
+        var metricsPath = Path.Combine(outputDirectory, "debug-overlaps.txt");
+        File.WriteAllLines(metricsPath, overlaps.Select((overlap, index) => $"{index}->{index + 1}: {overlap}"));
+    }
+
+    private static CapturedFrame? MoveToTop(IntPtr hwnd, string preferredMode)
+    {
+        NativeMethods.ScrollWindowToBoundary(hwnd, top: true);
+        Thread.Sleep(350);
+        return CaptureSettledFrame(hwnd, preferredMode);
+    }
+
+    private static CapturedFrame? CaptureSettledFrame(IntPtr hwnd, string? preferredMode = null)
+    {
+        CapturedFrame? current = CaptureFrame(hwnd, preferredMode);
+        if (current is null || current.ClientBitmap is null)
+        {
+            return current;
+        }
+
+        for (var attempt = 0; attempt < 4; attempt++)
+        {
+            Thread.Sleep(120);
+            using var next = CaptureFrame(hwnd, preferredMode ?? current.ModeUsed);
+            if (next is null || next.ClientBitmap is null)
+            {
+                return current;
+            }
+
+            var currentBitmap = current.ClientBitmap;
+            if (currentBitmap is null)
+            {
+                return current;
+            }
+
+            var currentFingerprint = ScrollCaptureStitcher.ComputeFingerprint(currentBitmap);
+            var nextFingerprint = ScrollCaptureStitcher.ComputeFingerprint(next.ClientBitmap);
+            if (currentFingerprint == nextFingerprint)
+            {
+                current.Dispose();
+                return next.Detach();
+            }
+
             current.Dispose();
             current = next.Detach();
         }
@@ -294,6 +377,32 @@ internal sealed class WindowCaptureService
         {
             FullBitmap?.Dispose();
             ClientBitmap?.Dispose();
+        }
+    }
+
+    private sealed class PreparedFrameSet : IDisposable, IReadOnlyList<Bitmap>
+    {
+        private readonly List<Bitmap> _bitmaps;
+
+        public PreparedFrameSet(List<Bitmap> bitmaps)
+        {
+            _bitmaps = bitmaps;
+        }
+
+        public Bitmap this[int index] => _bitmaps[index];
+
+        public int Count => _bitmaps.Count;
+
+        public IEnumerator<Bitmap> GetEnumerator() => _bitmaps.GetEnumerator();
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+
+        public void Dispose()
+        {
+            foreach (var bitmap in _bitmaps)
+            {
+                bitmap.Dispose();
+            }
         }
     }
 }

@@ -37,6 +37,7 @@ internal static class AgentPaths
             RunId = runId,
             BootstrapScriptPath = Path.Combine(runDirectory, "bootstrap.ps1"),
             CommandFilePath = Path.Combine(runDirectory, "payload.txt"),
+            ReadyFilePath = Path.Combine(runDirectory, "ready.json"),
             DoneFilePath = Path.Combine(runDirectory, "done.json"),
             ResultFilePath = resultPath,
             MetadataFilePath = metaPath,

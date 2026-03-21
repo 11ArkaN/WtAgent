@@ -26,7 +26,37 @@ internal static class ScrollCaptureStitcher
         }
     }
 
+    public static int CountDistinctRows(Bitmap bitmap)
+    {
+        return ComputeRowHashes(bitmap).Distinct().Count();
+    }
+
+    public static int CountSharedTopRows(Bitmap first, Bitmap second, int maxRows)
+    {
+        var firstHashes = ComputeRowHashes(first);
+        var secondHashes = ComputeRowHashes(second);
+        var limit = Math.Min(maxRows, Math.Min(firstHashes.Length, secondHashes.Length));
+        var shared = 0;
+
+        for (var index = 0; index < limit; index++)
+        {
+            if (firstHashes[index] != secondHashes[index])
+            {
+                break;
+            }
+
+            shared++;
+        }
+
+        return shared;
+    }
+
     public static Bitmap Stitch(IReadOnlyList<Bitmap> frames)
+    {
+        return Stack(frames);
+    }
+
+    public static Bitmap Stack(IReadOnlyList<Bitmap> frames)
     {
         if (frames.Count == 0)
         {
@@ -38,14 +68,12 @@ internal static class ScrollCaptureStitcher
             return (Bitmap)frames[0].Clone();
         }
 
-        var overlaps = new int[frames.Count - 1];
         var totalHeight = frames[0].Height;
         var width = frames.Max(bitmap => bitmap.Width);
 
         for (var i = 1; i < frames.Count; i++)
         {
-            overlaps[i - 1] = FindVerticalOverlap(frames[i - 1], frames[i]);
-            totalHeight += frames[i].Height - overlaps[i - 1];
+            totalHeight += frames[i].Height;
         }
 
         var canvas = new Bitmap(width, totalHeight, PixelFormat.Format32bppArgb);
@@ -58,54 +86,142 @@ internal static class ScrollCaptureStitcher
 
         for (var i = 1; i < frames.Count; i++)
         {
-            var overlap = overlaps[i - 1];
-            var source = new Rectangle(0, overlap, frames[i].Width, frames[i].Height - overlap);
-            var destination = new Rectangle(0, y - overlap, source.Width, source.Height);
-            graphics.DrawImage(frames[i], destination, source, GraphicsUnit.Pixel);
-            y += frames[i].Height - overlap;
+            graphics.DrawImageUnscaled(frames[i], 0, y);
+            y += frames[i].Height;
         }
 
         return canvas;
     }
 
+    public static int[] ComputeOverlaps(IReadOnlyList<Bitmap> frames)
+    {
+        if (frames.Count <= 1)
+        {
+            return [];
+        }
+
+        var overlaps = new int[frames.Count - 1];
+        for (var i = 1; i < frames.Count; i++)
+        {
+            overlaps[i - 1] = FindVerticalOverlap(frames[i - 1], frames[i]);
+        }
+
+        return overlaps;
+    }
+
     public static int FindVerticalOverlap(Bitmap previous, Bitmap current)
     {
-        var minOverlap = Math.Min(24, Math.Min(previous.Height, current.Height) / 8);
+        var minDimension = Math.Min(previous.Height, current.Height);
         var maxOverlap = Math.Min(previous.Height, current.Height) - 1;
+        var minOverlap = Math.Min(Math.Max(2, minDimension / 20), maxOverlap);
+        var previousHashes = ComputeRowHashes(previous);
+        var currentHashes = ComputeRowHashes(current);
 
         for (var overlap = maxOverlap; overlap >= minOverlap; overlap--)
         {
-            if (AreSlicesEquivalent(previous, previous.Height - overlap, current, 0, overlap))
+            if (RowsOverlapExactly(previousHashes, currentHashes, overlap))
             {
                 return overlap;
             }
         }
 
-        return 0;
+        var bestOverlap = 0;
+        var bestScore = double.MaxValue;
+
+        for (var overlap = maxOverlap; overlap >= minOverlap; overlap--)
+        {
+            var exactRatio = ComputeExactRowMatchRatio(previousHashes, currentHashes, overlap);
+            if (exactRatio < 0.08 && overlap > minOverlap * 2)
+            {
+                continue;
+            }
+
+            var score = ComputeOverlapScore(previous, current, overlap);
+            if (score < bestScore - 0.01 || (Math.Abs(score - bestScore) <= 0.01 && overlap > bestOverlap))
+            {
+                bestScore = score;
+                bestOverlap = overlap;
+            }
+        }
+
+        return bestScore <= 8.0 ? bestOverlap : 0;
     }
 
-    private static bool AreSlicesEquivalent(Bitmap previous, int previousStartY, Bitmap current, int currentStartY, int height)
+    private static uint[] ComputeRowHashes(Bitmap bitmap)
     {
-        var width = Math.Min(previous.Width, current.Width);
-        var sampleX = Math.Max(1, width / 48);
-        var sampleY = Math.Max(1, height / 24);
-        long delta = 0;
-        long tolerance = 24L * ((width / sampleX) + 1) * ((height / sampleY) + 1);
-
-        for (var y = 0; y < height; y += sampleY)
+        var hashes = new uint[bitmap.Height];
+        unchecked
         {
-            for (var x = 0; x < width; x += sampleX)
+            var usableWidth = Math.Max(1, bitmap.Width - 28);
+            for (var y = 0; y < bitmap.Height; y++)
             {
-                var prev = previous.GetPixel(x, previousStartY + y);
-                var next = current.GetPixel(x, currentStartY + y);
-                delta += Math.Abs(prev.R - next.R) + Math.Abs(prev.G - next.G) + Math.Abs(prev.B - next.B);
-                if (delta > tolerance)
+                uint hash = 2166136261;
+                for (var x = 0; x < usableWidth; x++)
                 {
-                    return false;
+                    hash ^= (uint)bitmap.GetPixel(x, y).ToArgb();
+                    hash *= 16777619;
                 }
+
+                hashes[y] = hash;
+            }
+        }
+
+        return hashes;
+    }
+
+    private static double ComputeExactRowMatchRatio(uint[] previous, uint[] current, int overlap)
+    {
+        var matches = 0;
+        for (var index = 0; index < overlap; index++)
+        {
+            if (previous[previous.Length - overlap + index] != current[index])
+            {
+                continue;
+            }
+
+            matches++;
+        }
+
+        return (double)matches / overlap;
+    }
+
+    private static bool RowsOverlapExactly(uint[] previous, uint[] current, int overlap)
+    {
+        for (var index = 0; index < overlap; index++)
+        {
+            if (previous[previous.Length - overlap + index] != current[index])
+            {
+                return false;
             }
         }
 
         return true;
+    }
+
+    private static double ComputeOverlapScore(Bitmap previous, Bitmap current, int overlap)
+    {
+        var rowStep = Math.Max(1, overlap / 48);
+        var columnLimit = Math.Max(1, Math.Min(previous.Width, current.Width) - 28);
+        var columnStep = Math.Max(2, columnLimit / 96);
+        long diffSum = 0;
+        var samples = 0;
+
+        for (var offset = 0; offset < overlap; offset += rowStep)
+        {
+            var previousY = previous.Height - overlap + offset;
+            var currentY = offset;
+
+            for (var x = 0; x < columnLimit; x += columnStep)
+            {
+                var previousPixel = previous.GetPixel(x, previousY);
+                var currentPixel = current.GetPixel(x, currentY);
+                diffSum += Math.Abs(previousPixel.R - currentPixel.R);
+                diffSum += Math.Abs(previousPixel.G - currentPixel.G);
+                diffSum += Math.Abs(previousPixel.B - currentPixel.B);
+                samples += 3;
+            }
+        }
+
+        return samples == 0 ? double.MaxValue : (double)diffSum / samples;
     }
 }

@@ -19,11 +19,14 @@ internal static class NativeMethods
     public const int WM_CLOSE = 0x0010;
     public const int WM_MOUSEWHEEL = 0x020A;
     public const uint PW_RENDERFULLCONTENT = 0x00000002;
+    public const int WHEEL_DELTA = 120;
     public const byte KEYEVENTF_KEYUP = 0x0002;
     public const byte VK_CONTROL = 0x11;
     public const byte VK_SHIFT = 0x10;
     public const byte VK_PRIOR = 0x21;
     public const byte VK_NEXT = 0x22;
+    public const byte VK_HOME = 0x24;
+    public const byte VK_END = 0x23;
 
     public static IntPtr CreateDesktopForRun(string desktopName)
     {
@@ -181,6 +184,72 @@ internal static class NativeMethods
         }
     }
 
+    public static void PasteCommandAndSubmit(IntPtr hwnd, string commandText)
+    {
+        ShowWindow(hwnd, SW_RESTORE);
+        SetForegroundWindow(hwnd);
+        Thread.Sleep(120);
+        SetClipboardText(commandText);
+        Thread.Sleep(80);
+
+        if (!TrySendKeys("^v"))
+        {
+            throw new InvalidOperationException("Failed to paste the command into Windows Terminal.");
+        }
+
+        Thread.Sleep(50);
+
+        if (!TrySendKeys("{ENTER}"))
+        {
+            throw new InvalidOperationException("Failed to submit the command in Windows Terminal.");
+        }
+    }
+
+    public static void ScrollWindowToBoundary(IntPtr hwnd, bool top)
+    {
+        ShowWindow(hwnd, SW_RESTORE);
+        SetForegroundWindow(hwnd);
+        Thread.Sleep(80);
+
+        if (!TrySendKeys(top ? "^+{HOME}" : "^+{END}"))
+        {
+            keybd_event(VK_CONTROL, 0, 0, UIntPtr.Zero);
+            keybd_event(VK_SHIFT, 0, 0, UIntPtr.Zero);
+            keybd_event(top ? VK_HOME : VK_END, 0, 0, UIntPtr.Zero);
+            keybd_event(top ? VK_HOME : VK_END, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+            keybd_event(VK_SHIFT, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+            keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+        }
+    }
+
+    public static void ScrollWindowWheel(IntPtr hwnd, bool down, int detents)
+    {
+        if (detents <= 0)
+        {
+            return;
+        }
+
+        ShowWindow(hwnd, SW_RESTORE);
+        SetForegroundWindow(hwnd);
+        Thread.Sleep(80);
+
+        if (!GetWindowRect(hwnd, out var rect))
+        {
+            return;
+        }
+
+        var x = rect.Left + Math.Max(8, (rect.Right - rect.Left) / 2);
+        var y = rect.Top + Math.Max(8, (rect.Bottom - rect.Top) / 2);
+        var lParam = CreateLParam(x, y);
+        var wheelDelta = (down ? -WHEEL_DELTA : WHEEL_DELTA) << 16;
+
+        for (var i = 0; i < detents; i++)
+        {
+            PostMessage(hwnd, WM_MOUSEWHEEL, (IntPtr)wheelDelta, lParam);
+            Thread.Sleep(35);
+        }
+    }
+
     private static bool TrySendKeys(string keys)
     {
         Exception? failure = null;
@@ -205,6 +274,42 @@ internal static class NativeMethods
         thread.Start();
         completed.Wait(TimeSpan.FromSeconds(2));
         return failure is null;
+    }
+
+    private static void SetClipboardText(string text)
+    {
+        Exception? failure = null;
+        using var completed = new ManualResetEventSlim(false);
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                Clipboard.SetText(text);
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+            finally
+            {
+                completed.Set();
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        completed.Wait(TimeSpan.FromSeconds(2));
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    private static IntPtr CreateLParam(int low, int high)
+    {
+        var value = ((high & 0xFFFF) << 16) | (low & 0xFFFF);
+        return (IntPtr)value;
     }
 
     [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
