@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Windows.Forms;
 
 namespace WtAgent;
 
@@ -14,8 +15,15 @@ internal static class NativeMethods
     public const uint NORMAL_PRIORITY_CLASS = 0x00000020;
     public const int STARTF_USESHOWWINDOW = 0x00000001;
     public const ushort SW_SHOWMINNOACTIVE = 7;
+    public const int SW_RESTORE = 9;
     public const int WM_CLOSE = 0x0010;
+    public const int WM_MOUSEWHEEL = 0x020A;
     public const uint PW_RENDERFULLCONTENT = 0x00000002;
+    public const byte KEYEVENTF_KEYUP = 0x0002;
+    public const byte VK_CONTROL = 0x11;
+    public const byte VK_SHIFT = 0x10;
+    public const byte VK_PRIOR = 0x21;
+    public const byte VK_NEXT = 0x22;
 
     public static IntPtr CreateDesktopForRun(string desktopName)
     {
@@ -132,6 +140,73 @@ internal static class NativeMethods
         return found;
     }
 
+    public static bool TryGetClientRectangle(IntPtr hwnd, out RECT clientRect)
+    {
+        clientRect = default;
+        if (!GetClientRect(hwnd, out var client))
+        {
+            return false;
+        }
+
+        var origin = new POINT { X = client.Left, Y = client.Top };
+        if (!ClientToScreen(hwnd, ref origin))
+        {
+            return false;
+        }
+
+        clientRect = new RECT
+        {
+            Left = origin.X,
+            Top = origin.Y,
+            Right = origin.X + (client.Right - client.Left),
+            Bottom = origin.Y + (client.Bottom - client.Top)
+        };
+        return true;
+    }
+
+    public static void ScrollWindowPage(IntPtr hwnd, bool up)
+    {
+        ShowWindow(hwnd, SW_RESTORE);
+        SetForegroundWindow(hwnd);
+        Thread.Sleep(80);
+
+        if (!TrySendKeys(up ? "^+{PGUP}" : "^+{PGDN}"))
+        {
+            keybd_event(VK_CONTROL, 0, 0, UIntPtr.Zero);
+            keybd_event(VK_SHIFT, 0, 0, UIntPtr.Zero);
+            keybd_event(up ? VK_PRIOR : VK_NEXT, 0, 0, UIntPtr.Zero);
+            keybd_event(up ? VK_PRIOR : VK_NEXT, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+            keybd_event(VK_SHIFT, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+            keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+        }
+    }
+
+    private static bool TrySendKeys(string keys)
+    {
+        Exception? failure = null;
+        using var completed = new ManualResetEventSlim(false);
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                SendKeys.SendWait(keys);
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+            finally
+            {
+                completed.Set();
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        completed.Wait(TimeSpan.FromSeconds(2));
+        return failure is null;
+    }
+
     [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     private static extern IntPtr CreateDesktop(
         string lpszDesktop,
@@ -166,10 +241,25 @@ internal static class NativeMethods
     public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
 
     [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool GetClientRect(IntPtr hWnd, out RECT lpRect);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool ClientToScreen(IntPtr hWnd, ref POINT lpPoint);
+
+    [DllImport("user32.dll", SetLastError = true)]
     public static extern bool PrintWindow(IntPtr hwnd, IntPtr hdcBlt, uint nFlags);
 
     [DllImport("user32.dll", SetLastError = true)]
     public static extern bool PostMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetForegroundWindow();
 
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     private static extern bool CreateProcess(
@@ -186,6 +276,9 @@ internal static class NativeMethods
 
     [DllImport("kernel32.dll", SetLastError = true)]
     public static extern bool CloseHandle(IntPtr hObject);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
 
     private delegate bool EnumDesktopWindowsProc(IntPtr hWnd, IntPtr lParam);
 
@@ -228,5 +321,12 @@ internal static class NativeMethods
         public int Top;
         public int Right;
         public int Bottom;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct POINT
+    {
+        public int X;
+        public int Y;
     }
 }
