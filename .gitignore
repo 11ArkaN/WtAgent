@@ -1,0 +1,8 @@
+bin/
+obj/
+.vs/
+.vscode/
+.wt-agent/
+TestResults/
+*.user
+*.suo
