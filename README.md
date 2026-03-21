@@ -68,10 +68,11 @@ That means the skill can be installed to multiple agent ecosystems, not only Cod
 Install from a local checkout with `skills.sh`:
 
 ```bash
+cd /path/to/WtAgent
 npx skills add . --skill wt-agent-terminal
 ```
 
-Install from GitHub for authenticated users:
+Or install by pointing directly at the repo URL:
 
 ```bash
 npx skills add https://github.com/11ArkaN/WtAgent --skill wt-agent-terminal
@@ -86,6 +87,8 @@ npx skills add . --skill wt-agent-terminal --agent cursor
 ```
 
 Use `scripts/install-wt-agent-skill.ps1` only as the convenience path for Codex-style local installs on Windows. For cross-agent installation, prefer `npx skills add ...`.
+
+Important: `npx skills add . --skill wt-agent-terminal` only works when `.` is the root of this repo. If you run it from `C:\Users\<you>`, then `skills` scans your home directory instead of `WtAgent`.
 
 ## Quick Start
 
@@ -147,7 +150,6 @@ If you want a custom location, pass `--artifacts-dir`.
 - Primary installer asset: `WtAgent-Setup.exe`
 - Current installer target asset name: `wt-agent-win-x64.zip`
 - Current skill asset name: `wt-agent-terminal-skill.zip`
-- Developer helper scripts asset: `wt-agent-installer-scripts.zip`
 
 ## Development
 

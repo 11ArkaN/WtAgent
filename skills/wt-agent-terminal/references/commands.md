@@ -19,10 +19,11 @@ Use this only for local development or unpublished branches.
 ## Install Through skills.sh
 
 ```bash
+cd /path/to/WtAgent
 npx skills add . --skill wt-agent-terminal
 ```
 
-Install from the current checkout into an agent detected by the `skills` CLI.
+Install from the current checkout into an agent detected by the `skills` CLI. This only works if the current directory is the root of the `WtAgent` repo.
 
 ```bash
 npx skills add https://github.com/11ArkaN/WtAgent --skill wt-agent-terminal --agent codex
