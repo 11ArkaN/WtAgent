@@ -46,7 +46,18 @@ jobs:
           }
           Compress-Archive -Path "out/win-x64/*" -DestinationPath $artifactName
 
+      - name: Package skill
+        shell: pwsh
+        run: |
+          $artifactName = "wt-agent-terminal-skill.zip"
+          if (Test-Path $artifactName) {
+            Remove-Item $artifactName -Force
+          }
+          Compress-Archive -Path "skills/wt-agent-terminal" -DestinationPath $artifactName
+
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          files: wt-agent-win-x64.zip
+          files: |
+            wt-agent-win-x64.zip
+            wt-agent-terminal-skill.zip

@@ -42,15 +42,21 @@ Default install path is GitHub Releases:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\install-wt-agent.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\install-wt-agent-skill.ps1
 ```
 
 That downloads the latest `wt-agent-win-x64.zip` release asset, installs it into `%LOCALAPPDATA%\wt-agent\current`, and exposes `wt-agent` through `%USERPROFILE%\.local\bin`.
+
+The second command installs the Codex skill from the same release into `%CODEX_HOME%\skills\wt-agent-terminal` or `%USERPROFILE%\.codex\skills\wt-agent-terminal`.
 
 For unpublished local changes:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\install-wt-agent.ps1 -Source local
+powershell -ExecutionPolicy Bypass -File .\scripts\install-wt-agent-skill.ps1 -Source local
 ```
+
+Skill sources now live in the repo under [skills/wt-agent-terminal](/C:/Users/ArkaN/Downloads/sulima%20lab2/skills/wt-agent-terminal).
 
 ## Quick Start
 

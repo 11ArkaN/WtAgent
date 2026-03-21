@@ -1,0 +1,4 @@
+interface:
+  display_name: "WT Agent Terminal"
+  short_description: "Real Windows Terminal screenshots"
+  default_prompt: "Use wt-agent to run or recover Windows Terminal sessions, inspect live session state, and verify the latest real screenshot before deciding what to do next."
