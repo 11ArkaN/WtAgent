@@ -7,7 +7,9 @@ description: Operate the local wt-agent CLI to drive Windows Terminal with real 
 
 Use `wt-agent` as the primary interface for Windows Terminal work that must preserve real screenshots.
 
-If `wt-agent` is missing, install it first from the current repo with `scripts/install-wt-agent.ps1`. Install this skill with `scripts/install-wt-agent-skill.ps1`.
+This skill is stored in a `skills.sh`-compatible `skills/<name>` layout, so it can be installed into multiple agent ecosystems such as Codex, Claude Code, Cursor, and other tools supported by `npx skills add`.
+
+If `wt-agent` is missing, install it first from the current repo with `scripts/install-wt-agent.ps1`.
 
 ## Quick Start
 
@@ -17,6 +19,7 @@ If `wt-agent` is missing, install it first from the current repo with `scripts/i
 - Treat the screenshot as the source of truth for visual correctness. Open `latestCapturePath` when judging what the terminal actually showed.
 - Use `session-list` and `session-inspect` whenever the current context loses the session id.
 - Expect global `wt-agent` to work from any directory once the installer has added the launcher to the user `PATH`.
+- Prefer `npx skills add . --skill wt-agent-terminal` or `npx skills add <repo-url> --skill wt-agent-terminal` when installing this skill into non-Codex agents.
 
 ## Core Workflow
 

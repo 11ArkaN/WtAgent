@@ -9,6 +9,21 @@ powershell -ExecutionPolicy Bypass -File .\scripts\install-wt-agent-skill.ps1
 
 Use this as the default install path. It downloads the latest release assets from `11ArkaN/WtAgent`, installs the CLI into `%LOCALAPPDATA%\wt-agent\current`, and installs the skill into `%CODEX_HOME%\skills\wt-agent-terminal` or `%USERPROFILE%\.codex\skills\wt-agent-terminal`.
 
+## Install Through skills.sh
+
+```bash
+npx skills add . --skill wt-agent-terminal
+```
+
+Install from the current checkout into an agent detected by the `skills` CLI.
+
+```bash
+npx skills add https://github.com/11ArkaN/WtAgent --skill wt-agent-terminal --agent codex
+npx skills add https://github.com/11ArkaN/WtAgent --skill wt-agent-terminal --agent claude-code
+```
+
+Use this path when the target agent is not Codex or when you want the standard multi-agent skills ecosystem instead of the Windows-only convenience installer.
+
 ## Install Local Unreleased Build
 
 ```powershell

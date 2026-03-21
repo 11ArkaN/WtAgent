@@ -49,14 +49,42 @@ That downloads the latest `wt-agent-win-x64.zip` release asset, installs it into
 
 The second command installs the Codex skill from the same release into `%CODEX_HOME%\skills\wt-agent-terminal` or `%USERPROFILE%\.codex\skills\wt-agent-terminal`.
 
+## Agent Skill
+
+This repo is laid out in a `skills.sh`-compatible structure:
+
+- [skills/wt-agent-terminal](/C:/Users/ArkaN/Downloads/sulima%20lab2/skills/wt-agent-terminal)
+
+That means the skill can be installed to multiple agent ecosystems, not only Codex.
+
+Install from a local checkout with `skills.sh`:
+
+```bash
+npx skills add . --skill wt-agent-terminal
+```
+
+Install from GitHub for authenticated users:
+
+```bash
+npx skills add https://github.com/11ArkaN/WtAgent --skill wt-agent-terminal
+```
+
+Target a specific agent explicitly:
+
+```bash
+npx skills add . --skill wt-agent-terminal --agent codex
+npx skills add . --skill wt-agent-terminal --agent claude-code
+npx skills add . --skill wt-agent-terminal --agent cursor
+```
+
+Use `scripts/install-wt-agent-skill.ps1` only as the convenience path for Codex-style local installs on Windows. For cross-agent installation, prefer `npx skills add ...`.
+
 For unpublished local changes:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\install-wt-agent.ps1 -Source local
 powershell -ExecutionPolicy Bypass -File .\scripts\install-wt-agent-skill.ps1 -Source local
 ```
-
-Skill sources now live in the repo under [skills/wt-agent-terminal](/C:/Users/ArkaN/Downloads/sulima%20lab2/skills/wt-agent-terminal).
 
 ## Quick Start
 
@@ -103,6 +131,7 @@ Every command returns JSON. Important fields:
 - Repo: [11ArkaN/WtAgent](https://github.com/11ArkaN/WtAgent)
 - Latest release assets are published from GitHub Actions on tags `v*`
 - Current installer target asset name: `wt-agent-win-x64.zip`
+- Current skill asset name: `wt-agent-terminal-skill.zip`
 
 ## Development
 
