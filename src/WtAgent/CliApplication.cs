@@ -15,7 +15,7 @@ internal sealed class CliApplication
     {
         if (args.Length == 0)
         {
-            return WriteError("launch_error", "Missing command. Expected one of: run, inspect, cleanup.");
+            return WriteError("launch_error", "Missing command. Expected one of: run, inspect, cleanup, session-start, session-send, session-status, session-capture, session-submit, session-interrupt, session-stop.");
         }
 
         return args[0].ToLowerInvariant() switch
@@ -23,6 +23,13 @@ internal sealed class CliApplication
             "run" => await RunCommandAsync(args[1..]),
             "inspect" => await InspectCommandAsync(args[1..]),
             "cleanup" => await CleanupCommandAsync(args[1..]),
+            "session-start" => await SessionStartCommandAsync(args[1..]),
+            "session-send" => await SessionSendCommandAsync(args[1..]),
+            "session-status" => await SessionStatusCommandAsync(args[1..]),
+            "session-capture" => await SessionCaptureCommandAsync(args[1..]),
+            "session-submit" => await SessionSubmitCommandAsync(args[1..]),
+            "session-interrupt" => await SessionInterruptCommandAsync(args[1..]),
+            "session-stop" => await SessionStopCommandAsync(args[1..]),
             _ => WriteError("launch_error", $"Unknown command '{args[0]}'.")
         };
     }
@@ -133,6 +140,140 @@ internal sealed class CliApplication
                 ModeUsed = "none",
                 BlankFrameDetected = false
             }
+        };
+
+        Console.WriteLine(JsonSerializer.Serialize(errorResult, _serializerOptions));
+        return 1;
+    }
+
+    private async Task<int> SessionStartCommandAsync(string[] args)
+    {
+        var parsed = ArgumentParser.ParseSessionStart(args);
+        if (!parsed.Success)
+        {
+            return WriteSessionError("error", parsed.ErrorMessage!);
+        }
+
+        var manager = new WindowsTerminalSessionManager(_serializerOptions);
+        var result = await manager.StartAsync(parsed.Arguments!);
+        Console.WriteLine(JsonSerializer.Serialize(result, _serializerOptions));
+        return result.Status is "idle" or "interactive" ? 0 : 1;
+    }
+
+    private async Task<int> SessionSendCommandAsync(string[] args)
+    {
+        var parsed = ArgumentParser.ParseSessionSend(args);
+        if (!parsed.Success)
+        {
+            return WriteSessionError("error", parsed.ErrorMessage!);
+        }
+
+        var manager = new WindowsTerminalSessionManager(_serializerOptions);
+        var result = await manager.SendAsync(parsed.Arguments!);
+        Console.WriteLine(JsonSerializer.Serialize(result, _serializerOptions));
+        return result.Status == "not_found" || result.Status == "error" ? 1 : 0;
+    }
+
+    private async Task<int> SessionStatusCommandAsync(string[] args)
+    {
+        var parsed = ArgumentParser.ParseSessionStatus(args);
+        if (!parsed.Success)
+        {
+            return WriteSessionError("error", parsed.ErrorMessage!);
+        }
+
+        var manager = new WindowsTerminalSessionManager(_serializerOptions);
+        var result = await manager.StatusAsync(parsed.Arguments!);
+        Console.WriteLine(JsonSerializer.Serialize(result, _serializerOptions));
+        return result.Status == "not_found" ? 1 : 0;
+    }
+
+    private async Task<int> SessionCaptureCommandAsync(string[] args)
+    {
+        var parsed = ArgumentParser.ParseSessionCapture(args);
+        if (!parsed.Success)
+        {
+            return WriteSessionError("error", parsed.ErrorMessage!);
+        }
+
+        var manager = new WindowsTerminalSessionManager(_serializerOptions);
+        var result = await manager.CaptureAsync(parsed.Arguments!);
+        Console.WriteLine(JsonSerializer.Serialize(result, _serializerOptions));
+        return result.Status == "not_found" ? 1 : 0;
+    }
+
+    private async Task<int> SessionInterruptCommandAsync(string[] args)
+    {
+        var parsed = ArgumentParser.ParseSessionInterrupt(args);
+        if (!parsed.Success)
+        {
+            return WriteSessionError("error", parsed.ErrorMessage!);
+        }
+
+        var manager = new WindowsTerminalSessionManager(_serializerOptions);
+        var result = await manager.InterruptAsync(parsed.Arguments!);
+        Console.WriteLine(JsonSerializer.Serialize(result, _serializerOptions));
+        return result.Status == "not_found" ? 1 : 0;
+    }
+
+    private async Task<int> SessionSubmitCommandAsync(string[] args)
+    {
+        var parsed = ArgumentParser.ParseSessionSubmit(args);
+        if (!parsed.Success)
+        {
+            return WriteSessionError("error", parsed.ErrorMessage!);
+        }
+
+        var manager = new WindowsTerminalSessionManager(_serializerOptions);
+        var result = await manager.SubmitAsync(parsed.Arguments!);
+        Console.WriteLine(JsonSerializer.Serialize(result, _serializerOptions));
+        return result.Status == "not_found" ? 1 : 0;
+    }
+
+    private async Task<int> SessionStopCommandAsync(string[] args)
+    {
+        var parsed = ArgumentParser.ParseSessionStop(args);
+        if (!parsed.Success)
+        {
+            return WriteSessionError("error", parsed.ErrorMessage!);
+        }
+
+        var manager = new WindowsTerminalSessionManager(_serializerOptions);
+        var result = await manager.StopAsync(parsed.Arguments!);
+        Console.WriteLine(JsonSerializer.Serialize(result, _serializerOptions));
+        return result.Status == "not_found" ? 1 : 0;
+    }
+
+    private int WriteSessionError(string status, string message)
+    {
+        var errorResult = new SessionResult
+        {
+            SessionId = "n/a",
+            Status = status,
+            Window = new WindowInfo
+            {
+                Title = string.Empty,
+                Profile = string.Empty,
+                Pid = null,
+                Hwnd = null
+            },
+            Artifacts = new SessionArtifacts
+            {
+                SessionPath = string.Empty,
+                TranscriptPath = string.Empty,
+                CapturesPath = string.Empty,
+                LatestCapturePath = null,
+                PromptStatePath = string.Empty,
+                SessionStatePath = string.Empty
+            },
+            Live = new SessionLiveInfo
+            {
+                WindowAlive = false,
+                CommandCount = 0,
+                UpdatedAtUtc = DateTimeOffset.UtcNow
+            },
+            StartedAtUtc = DateTimeOffset.UtcNow,
+            Error = message
         };
 
         Console.WriteLine(JsonSerializer.Serialize(errorResult, _serializerOptions));

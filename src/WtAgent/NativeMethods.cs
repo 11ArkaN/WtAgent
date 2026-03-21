@@ -27,6 +27,7 @@ internal static class NativeMethods
     public const byte VK_NEXT = 0x22;
     public const byte VK_HOME = 0x24;
     public const byte VK_END = 0x23;
+    public const byte VK_RETURN = 0x0D;
 
     public static IntPtr CreateDesktopForRun(string desktopName)
     {
@@ -186,22 +187,61 @@ internal static class NativeMethods
 
     public static void PasteCommandAndSubmit(IntPtr hwnd, string commandText)
     {
+        PasteText(hwnd, commandText);
+        Submit(hwnd);
+    }
+
+    public static void PasteText(IntPtr hwnd, string text)
+    {
         ShowWindow(hwnd, SW_RESTORE);
         SetForegroundWindow(hwnd);
         Thread.Sleep(120);
-        SetClipboardText(commandText);
+        SetClipboardText(text);
         Thread.Sleep(80);
 
         if (!TrySendKeys("^v"))
         {
-            throw new InvalidOperationException("Failed to paste the command into Windows Terminal.");
+            throw new InvalidOperationException("Failed to paste text into Windows Terminal.");
         }
+    }
 
+    public static void TypeText(IntPtr hwnd, string text)
+    {
+        ShowWindow(hwnd, SW_RESTORE);
+        SetForegroundWindow(hwnd);
+        Thread.Sleep(120);
+
+        if (!TrySendKeys(EscapeForSendKeys(text)))
+        {
+            throw new InvalidOperationException("Failed to type text into Windows Terminal.");
+        }
+    }
+
+    public static void Submit(IntPtr hwnd)
+    {
+        ShowWindow(hwnd, SW_RESTORE);
+        SetForegroundWindow(hwnd);
         Thread.Sleep(50);
 
         if (!TrySendKeys("{ENTER}"))
         {
-            throw new InvalidOperationException("Failed to submit the command in Windows Terminal.");
+            keybd_event(VK_RETURN, 0, 0, UIntPtr.Zero);
+            keybd_event(VK_RETURN, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+        }
+    }
+
+    public static void SendCtrlC(IntPtr hwnd)
+    {
+        ShowWindow(hwnd, SW_RESTORE);
+        SetForegroundWindow(hwnd);
+        Thread.Sleep(80);
+
+        if (!TrySendKeys("^c"))
+        {
+            keybd_event(VK_CONTROL, 0, 0, UIntPtr.Zero);
+            keybd_event(0x43, 0, 0, UIntPtr.Zero);
+            keybd_event(0x43, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+            keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
         }
     }
 
@@ -306,6 +346,30 @@ internal static class NativeMethods
         }
     }
 
+    private static string EscapeForSendKeys(string text)
+    {
+        var builder = new StringBuilder(text.Length * 2);
+        foreach (var character in text)
+        {
+            builder.Append(character switch
+            {
+                '+' => "{+}",
+                '^' => "{^}",
+                '%' => "{%}",
+                '~' => "{~}",
+                '(' => "{(}",
+                ')' => "{)}",
+                '{' => "{{}",
+                '}' => "{}}",
+                '[' => "{[}",
+                ']' => "{]}",
+                _ => character.ToString()
+            });
+        }
+
+        return builder.ToString();
+    }
+
     private static IntPtr CreateLParam(int low, int high)
     {
         var value = ((high & 0xFFFF) << 16) | (low & 0xFFFF);
@@ -341,6 +405,9 @@ internal static class NativeMethods
 
     [DllImport("user32.dll")]
     public static extern bool IsWindowVisible(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    public static extern bool IsWindow(IntPtr hWnd);
 
     [DllImport("user32.dll", SetLastError = true)]
     public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);

@@ -7,13 +7,23 @@ internal static class WindowsTerminalLauncher
 {
     public static LaunchResult Launch(RunArguments arguments, RunLayout layout, TerminalProfile profile, string title)
     {
+        return LaunchInternal(profile.Name, arguments.WorkingDirectory, title, layout.BootstrapScriptPath);
+    }
+
+    public static LaunchResult LaunchSession(StartSessionArguments arguments, SessionLayout layout, TerminalProfile profile, string title)
+    {
+        return LaunchInternal(profile.Name, arguments.WorkingDirectory, title, layout.BootstrapScriptPath);
+    }
+
+    private static LaunchResult LaunchInternal(string profileName, string workingDirectory, string title, string bootstrapPath)
+    {
         var bootstrapShell = Path.Combine(Environment.SystemDirectory, @"WindowsPowerShell\v1.0\powershell.exe");
         var wtPath = ResolveWtPath();
         var process = Process.Start(new ProcessStartInfo
         {
             FileName = wtPath,
-            Arguments = BuildArguments(profile.Name, arguments.WorkingDirectory, title, bootstrapShell, layout.BootstrapScriptPath),
-            WorkingDirectory = arguments.WorkingDirectory,
+            Arguments = BuildArguments(profileName, workingDirectory, title, bootstrapShell, bootstrapPath),
+            WorkingDirectory = workingDirectory,
             UseShellExecute = false
         }) ?? throw new InvalidOperationException("Failed to start wt.exe.");
 

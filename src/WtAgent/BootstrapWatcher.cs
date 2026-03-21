@@ -40,6 +40,46 @@ internal static class BootstrapWatcher
         throw new TimeoutException($"Timed out waiting for '{doneFilePath}'.");
     }
 
+    public static async Task<SessionPromptState?> ReadPromptStateAsync(string promptStateFilePath)
+    {
+        if (!File.Exists(promptStateFilePath))
+        {
+            return null;
+        }
+
+        for (var attempt = 0; attempt < 6; attempt++)
+        {
+            try
+            {
+                await using var stream = File.OpenRead(promptStateFilePath);
+                return await JsonSerializer.DeserializeAsync<SessionPromptState>(stream);
+            }
+            catch (IOException)
+            {
+                await Task.Delay(60);
+            }
+        }
+
+        return null;
+    }
+
+    public static async Task<SessionPromptState> WaitForPromptAdvanceAsync(string promptStateFilePath, int previousPromptSerial, TimeSpan timeout)
+    {
+        var started = DateTimeOffset.UtcNow;
+        while (DateTimeOffset.UtcNow - started < timeout)
+        {
+            var state = await ReadPromptStateAsync(promptStateFilePath);
+            if (state is not null && state.PromptSerial > previousPromptSerial)
+            {
+                return state;
+            }
+
+            await Task.Delay(150);
+        }
+
+        throw new TimeoutException($"Timed out waiting for prompt advance in '{promptStateFilePath}'.");
+    }
+
     private sealed record DonePayload
     {
         [JsonPropertyName("exitCode")]
