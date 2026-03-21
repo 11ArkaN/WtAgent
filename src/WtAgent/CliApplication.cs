@@ -15,7 +15,7 @@ internal sealed class CliApplication
     {
         if (args.Length == 0)
         {
-            return WriteError("launch_error", "Missing command. Expected one of: run, inspect, cleanup, session-start, session-send, session-status, session-capture, session-submit, session-interrupt, session-stop.");
+            return WriteError("launch_error", "Missing command. Expected one of: run, inspect, cleanup, session-start, session-list, session-inspect, session-send, session-status, session-capture, session-submit, session-enter-wsl, session-interrupt, session-stop.");
         }
 
         return args[0].ToLowerInvariant() switch
@@ -24,10 +24,13 @@ internal sealed class CliApplication
             "inspect" => await InspectCommandAsync(args[1..]),
             "cleanup" => await CleanupCommandAsync(args[1..]),
             "session-start" => await SessionStartCommandAsync(args[1..]),
+            "session-list" => await SessionListCommandAsync(args[1..]),
+            "session-inspect" => await SessionInspectCommandAsync(args[1..]),
             "session-send" => await SessionSendCommandAsync(args[1..]),
             "session-status" => await SessionStatusCommandAsync(args[1..]),
             "session-capture" => await SessionCaptureCommandAsync(args[1..]),
             "session-submit" => await SessionSubmitCommandAsync(args[1..]),
+            "session-enter-wsl" => await SessionEnterWslCommandAsync(args[1..]),
             "session-interrupt" => await SessionInterruptCommandAsync(args[1..]),
             "session-stop" => await SessionStopCommandAsync(args[1..]),
             _ => WriteError("launch_error", $"Unknown command '{args[0]}'.")
@@ -174,6 +177,34 @@ internal sealed class CliApplication
         return result.Status == "not_found" || result.Status == "error" ? 1 : 0;
     }
 
+    private async Task<int> SessionListCommandAsync(string[] args)
+    {
+        var parsed = ArgumentParser.ParseSessionList(args);
+        if (!parsed.Success)
+        {
+            return WriteSessionError("error", parsed.ErrorMessage!);
+        }
+
+        var manager = new WindowsTerminalSessionManager(_serializerOptions);
+        var result = await manager.ListAsync(parsed.Arguments!);
+        Console.WriteLine(JsonSerializer.Serialize(result, _serializerOptions));
+        return 0;
+    }
+
+    private async Task<int> SessionInspectCommandAsync(string[] args)
+    {
+        var parsed = ArgumentParser.ParseSessionInspect(args);
+        if (!parsed.Success)
+        {
+            return WriteSessionError("error", parsed.ErrorMessage!);
+        }
+
+        var manager = new WindowsTerminalSessionManager(_serializerOptions);
+        var result = await manager.InspectAsync(parsed.Arguments!);
+        Console.WriteLine(JsonSerializer.Serialize(result, _serializerOptions));
+        return result.Status == "not_found" ? 1 : 0;
+    }
+
     private async Task<int> SessionStatusCommandAsync(string[] args)
     {
         var parsed = ArgumentParser.ParseSessionStatus(args);
@@ -228,6 +259,20 @@ internal sealed class CliApplication
         var result = await manager.SubmitAsync(parsed.Arguments!);
         Console.WriteLine(JsonSerializer.Serialize(result, _serializerOptions));
         return result.Status == "not_found" ? 1 : 0;
+    }
+
+    private async Task<int> SessionEnterWslCommandAsync(string[] args)
+    {
+        var parsed = ArgumentParser.ParseSessionEnterWsl(args);
+        if (!parsed.Success)
+        {
+            return WriteSessionError("error", parsed.ErrorMessage!);
+        }
+
+        var manager = new WindowsTerminalSessionManager(_serializerOptions);
+        var result = await manager.EnterWslAsync(parsed.Arguments!);
+        Console.WriteLine(JsonSerializer.Serialize(result, _serializerOptions));
+        return result.Status == "not_found" || result.Status == "error" ? 1 : 0;
     }
 
     private async Task<int> SessionStopCommandAsync(string[] args)

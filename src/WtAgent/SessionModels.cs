@@ -24,6 +24,15 @@ public sealed record SessionStatusArguments(
     int TailLines,
     string? ArtifactsDirectory);
 
+public sealed record SessionInspectArguments(
+    string SessionId,
+    int TailLines,
+    string? ArtifactsDirectory);
+
+public sealed record SessionListArguments(
+    bool ActiveOnly,
+    string? ArtifactsDirectory);
+
 public sealed record SessionCaptureArguments(
     string SessionId,
     string? Label,
@@ -50,6 +59,14 @@ public sealed record SessionStopArguments(
     int PostWaitMs,
     string? ArtifactsDirectory);
 
+public sealed record SessionEnterWslArguments(
+    string SessionId,
+    string? Distribution,
+    int TimeoutSeconds,
+    int PostWaitMs,
+    bool CaptureAfterEnter,
+    string? ArtifactsDirectory);
+
 public enum SessionWaitMode
 {
     Prompt,
@@ -72,6 +89,12 @@ public sealed record SessionArtifacts
 
     [JsonPropertyName("promptStatePath")]
     public required string PromptStatePath { get; init; }
+
+    [JsonPropertyName("nestedPromptStatePath")]
+    public string? NestedPromptStatePath { get; init; }
+
+    [JsonPropertyName("nestedTranscriptPath")]
+    public string? NestedTranscriptPath { get; init; }
 
     [JsonPropertyName("sessionStatePath")]
     public required string SessionStatePath { get; init; }
@@ -97,6 +120,12 @@ public sealed record SessionPromptState
 
 public sealed record SessionLiveInfo
 {
+    [JsonPropertyName("shellKind")]
+    public string? ShellKind { get; init; }
+
+    [JsonPropertyName("stateSource")]
+    public string? StateSource { get; init; }
+
     [JsonPropertyName("windowAlive")]
     public bool WindowAlive { get; init; }
 
@@ -146,6 +175,36 @@ public sealed record SessionResult
     public string? Error { get; init; }
 }
 
+public sealed record SessionSummary
+{
+    [JsonPropertyName("sessionId")]
+    public required string SessionId { get; init; }
+
+    [JsonPropertyName("status")]
+    public required string Status { get; init; }
+
+    [JsonPropertyName("profile")]
+    public required string Profile { get; init; }
+
+    [JsonPropertyName("windowTitle")]
+    public required string WindowTitle { get; init; }
+
+    [JsonPropertyName("shellKind")]
+    public string? ShellKind { get; init; }
+
+    [JsonPropertyName("lastInput")]
+    public string? LastInput { get; init; }
+
+    [JsonPropertyName("lastCapturePath")]
+    public string? LastCapturePath { get; init; }
+
+    [JsonPropertyName("startedAtUtc")]
+    public required DateTimeOffset StartedAtUtc { get; init; }
+
+    [JsonPropertyName("completedAtUtc")]
+    public DateTimeOffset? CompletedAtUtc { get; init; }
+}
+
 internal sealed record SessionLayout
 {
     public required string RootDirectory { get; init; }
@@ -156,6 +215,10 @@ internal sealed record SessionLayout
     public required string BootstrapScriptPath { get; init; }
     public required string ReadyFilePath { get; init; }
     public required string PromptStateFilePath { get; init; }
+    public required string NestedPromptStateFilePath { get; init; }
+    public required string NestedTranscriptPath { get; init; }
+    public required string WslBootstrapScriptPath { get; init; }
+    public required string WslRcFilePath { get; init; }
     public required string ManifestPath { get; init; }
     public required string CapturesDirectory { get; init; }
     public required string TranscriptPath { get; init; }
@@ -176,5 +239,6 @@ internal sealed record SessionManifest
     public string? LastInput { get; set; }
     public string? LastCapturePath { get; set; }
     public string? LastCaptureLabel { get; set; }
+    public string? NestedShellKind { get; set; }
     public required SessionArtifacts Artifacts { get; set; }
 }

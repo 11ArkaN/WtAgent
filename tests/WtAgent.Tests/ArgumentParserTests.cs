@@ -63,4 +63,25 @@ public sealed class ArgumentParserTests
         Assert.NotNull(result.Arguments);
         Assert.Equal(SessionWaitMode.Prompt, result.Arguments!.WaitMode);
     }
+
+    [Fact]
+    public void ParseSessionList_ReadsActiveOnlyFlag()
+    {
+        var result = ArgumentParser.ParseSessionList(["--active-only", "true"]);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Arguments);
+        Assert.True(result.Arguments!.ActiveOnly);
+    }
+
+    [Fact]
+    public void ParseSessionEnterWsl_UsesDefaults()
+    {
+        var result = ArgumentParser.ParseSessionEnterWsl(["--session-id", "session-1"]);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Arguments);
+        Assert.True(result.Arguments!.CaptureAfterEnter);
+        Assert.Equal(20, result.Arguments.TimeoutSeconds);
+    }
 }

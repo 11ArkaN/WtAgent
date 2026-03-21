@@ -75,6 +75,10 @@ internal static class AgentPaths
             BootstrapScriptPath = Path.Combine(sessionDirectory, "bootstrap.ps1"),
             ReadyFilePath = Path.Combine(sessionDirectory, "ready.json"),
             PromptStateFilePath = Path.Combine(sessionDirectory, "prompt-state.json"),
+            NestedPromptStateFilePath = Path.Combine(sessionDirectory, "nested-prompt-state.json"),
+            NestedTranscriptPath = Path.Combine(sessionDirectory, "nested-transcript.log"),
+            WslBootstrapScriptPath = Path.Combine(sessionDirectory, "wsl-bootstrap.sh"),
+            WslRcFilePath = Path.Combine(sessionDirectory, "wsl-rc.sh"),
             ManifestPath = Path.Combine(sessionDirectory, "session.json"),
             CapturesDirectory = capturesDirectory,
             TranscriptPath = Path.Combine(sessionDirectory, "transcript.txt")

@@ -117,6 +117,27 @@ internal static class ArgumentParser
         return (true, null, new SessionStatusArguments(sessionId, tailLines, artifactsDir));
     }
 
+    public static (bool Success, string? ErrorMessage, SessionInspectArguments? Arguments) ParseSessionInspect(string[] args)
+    {
+        var map = ParseMap(args);
+        if (!map.TryGetValue("session-id", out var sessionId) || string.IsNullOrWhiteSpace(sessionId))
+        {
+            return (false, "Missing required --session-id value.", null);
+        }
+
+        var tailLines = ParseInt(map, "tail-lines", 80);
+        var artifactsDir = map.TryGetValue("artifacts-dir", out var artifactsValue) ? artifactsValue : null;
+        return (true, null, new SessionInspectArguments(sessionId, tailLines, artifactsDir));
+    }
+
+    public static (bool Success, string? ErrorMessage, SessionListArguments? Arguments) ParseSessionList(string[] args)
+    {
+        var map = ParseMap(args);
+        var activeOnly = ParseBool(map, "active-only", false);
+        var artifactsDir = map.TryGetValue("artifacts-dir", out var artifactsValue) ? artifactsValue : null;
+        return (true, null, new SessionListArguments(activeOnly, artifactsDir));
+    }
+
     public static (bool Success, string? ErrorMessage, SessionCaptureArguments? Arguments) ParseSessionCapture(string[] args)
     {
         var map = ParseMap(args);
@@ -176,6 +197,22 @@ internal static class ArgumentParser
         var postWaitMs = ParseInt(map, "post-wait-ms", 300);
         var artifactsDir = map.TryGetValue("artifacts-dir", out var artifactsValue) ? artifactsValue : null;
         return (true, null, new SessionStopArguments(sessionId, interrupt, postWaitMs, artifactsDir));
+    }
+
+    public static (bool Success, string? ErrorMessage, SessionEnterWslArguments? Arguments) ParseSessionEnterWsl(string[] args)
+    {
+        var map = ParseMap(args);
+        if (!map.TryGetValue("session-id", out var sessionId) || string.IsNullOrWhiteSpace(sessionId))
+        {
+            return (false, "Missing required --session-id value.", null);
+        }
+
+        var distribution = map.TryGetValue("distribution", out var distributionValue) ? distributionValue : null;
+        var timeout = ParseInt(map, "timeout-sec", 20);
+        var postWaitMs = ParseInt(map, "post-wait-ms", 1200);
+        var captureAfterEnter = ParseBool(map, "capture", true);
+        var artifactsDir = map.TryGetValue("artifacts-dir", out var artifactsValue) ? artifactsValue : null;
+        return (true, null, new SessionEnterWslArguments(sessionId, distribution, timeout, postWaitMs, captureAfterEnter, artifactsDir));
     }
 
     private static Dictionary<string, string> ParseMap(string[] args)
