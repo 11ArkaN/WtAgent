@@ -143,24 +143,31 @@ begin
   end;
 end;
 
+function GetUserProfileDir: string;
+begin
+  Result := GetEnv('USERPROFILE');
+  if Result = '' then
+    Result := ExpandConstant('{localappdata}\..\..');
+end;
+
 function GetCodexSkillDir(Param: string): string;
 var
   CodexHome: string;
 begin
   CodexHome := GetEnv('CODEX_HOME');
   if CodexHome = '' then
-    CodexHome := ExpandConstant('{userprofile}\.codex');
+    CodexHome := AddBackslash(GetUserProfileDir) + '.codex';
   Result := AddBackslash(CodexHome) + 'skills\wt-agent-terminal';
 end;
 
 function GetClaudeSkillDir(Param: string): string;
 begin
-  Result := ExpandConstant('{userprofile}\.claude\skills\wt-agent-terminal');
+  Result := AddBackslash(GetUserProfileDir) + '.claude\skills\wt-agent-terminal';
 end;
 
 function GetCursorSkillDir(Param: string): string;
 begin
-  Result := ExpandConstant('{userprofile}\.cursor\skills\wt-agent-terminal');
+  Result := AddBackslash(GetUserProfileDir) + '.cursor\skills\wt-agent-terminal';
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
